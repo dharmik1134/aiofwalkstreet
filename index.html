@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AiofWalkStreet — AI Trading Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet" />
+  <!-- Lightweight Charts v5 -->
+  <script src="https://unpkg.com/lightweight-charts@5.0.0/dist/lightweight-charts.standalone.production.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+  <!-- TOP NAVBAR -->
+  <nav class="navbar">
+    <div class="nav-left">
+      <div class="logo">
+        <span class="logo-icon">⬡</span>
+        <span class="logo-text">AiofWalkStreet</span>
+        <span class="logo-badge">PAPER TRADING</span>
+      </div>
+      <div class="ticker-row" id="tickerRow"></div>
+    </div>
+    <div class="nav-right">
+      <div class="ws-status" id="wsStatus">
+        <span class="dot disconnected" id="wsDot"></span>
+        <span id="wsLabel">Connecting...</span>
+      </div>
+      <div class="ai-status" id="aiStatus">
+        <span class="pulse-dot"></span>
+        <span>AI: Training</span>
+      </div>
+      <div class="groq-badge" id="groqBadge" style="display:none">
+        <span class="groq-dot" id="groqDot"></span>
+        <span>GROQ REASONING</span>
+      </div>
+      <div class="time-display" id="timeDisplay"></div>
+    </div>
+  </nav>
+
+  <!-- MAIN LAYOUT -->
+  <div class="main-layout">
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <h3 class="section-title">Portfolio</h3>
+        <div class="portfolio-total">
+          <span class="portfolio-label">Virtual Capital</span>
+          <span class="portfolio-value" id="portfolioValue">$100,000,000</span>
+          <span class="portfolio-pnl" id="portfolioPnl">+$0.00 (0.00%)</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3 class="section-title">Holdings</h3>
+        <div class="holdings" id="holdingsList">
+          <div class="empty-state">No active positions</div>
+        </div>
+      </div>
+
+      <!-- DEMO GOAL TRACKER -->
+      <div class="sidebar-section">
+        <h3 class="section-title">🎯 Demo Goal</h3>
+        <div class="goal-box">
+          <div class="goal-labels">
+            <span>Profit Target</span>
+            <span class="goal-amount" id="goalAmount">$0 / $100</span>
+          </div>
+          <div class="goal-bar-wrap">
+            <div class="goal-bar-fill" id="goalBarFill" style="width:0%"></div>
+          </div>
+          <div class="goal-status" id="goalStatus">Trade to earn $100 profit</div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-header-row">
+          <h3 class="section-title">Agent Analysis</h3>
+          <span class="agent-score neutral" id="agentScore">0</span>
+        </div>
+        <!-- Auto-Trade Toggle -->
+        <div class="auto-toggle-row">
+          <span class="auto-label">Auto Trade (Agent)</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="autoTradeSwitch" checked onchange="toggleAutoTrade()" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="signal-box">
+          <div class="signal-label">TA Decision</div>
+          <div class="signal-value" id="signalValue">SCANNING...</div>
+          <div class="signal-confidence" id="signalConfidence">Awaiting signals…</div>
+          <div class="signal-bar-wrapper">
+            <div class="signal-bar buy-bar" id="buyBar" style="width:33%"></div>
+            <div class="signal-bar sell-bar" id="sellBar" style="width:33%"></div>
+            <div class="signal-bar hold-bar" id="holdBar" style="width:34%"></div>
+          </div>
+          <div class="signal-bar-labels"><span>BUY ↑</span><span>SELL ↓</span><span>NOISE</span></div>
+        </div>
+      </div>
+
+      <!-- MANUAL TRADE CONTROLS -->
+      <div class="sidebar-section">
+        <h3 class="section-title">Manual Trade</h3>
+        <div class="manual-trade">
+          <div class="qty-row">
+            <label class="qty-label">Qty / Units</label>
+            <input type="number" id="tradeQty" class="qty-input" value="1" min="0.001" step="0.001" />
+          </div>
+          <div class="trade-btns">
+            <button class="trade-btn buy-btn" onclick="manualTrade('BUY')">▲ BUY</button>
+            <button class="trade-btn sell-btn" onclick="manualTrade('SELL')">▼ SELL</button>
+          </div>
+          <div class="manual-info" id="manualInfo">Select a symbol above first</div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3 class="section-title">Trade Log</h3>
+        <div class="trade-log" id="tradeLog"></div>
+      </div>
+    </aside>
+
+    <!-- CHART AREA -->
+    <main class="chart-area">
+      <div class="chart-header">
+        <!-- Symbol Tabs: Crypto (real) + Stocks (simulated) -->
+        <div class="chart-symbol-selector">
+          <span class="sym-group-label">CRYPTO</span>
+          <button class="sym-btn active" data-sym="BTCUSDT" onclick="switchSymbol('BTCUSDT',this)">BTC</button>
+          <button class="sym-btn" data-sym="ETHUSDT" onclick="switchSymbol('ETHUSDT',this)">ETH</button>
+          <button class="sym-btn" data-sym="SOLUSDT" onclick="switchSymbol('SOLUSDT',this)">SOL</button>
+          <button class="sym-btn" data-sym="BNBUSDT" onclick="switchSymbol('BNBUSDT',this)">BNB</button>
+          <span class="sym-group-label stocks-label">NYSE</span>
+          <button class="sym-btn stock" data-sym="NVDA" onclick="switchSymbol('NVDA',this)">NVDA</button>
+          <button class="sym-btn stock" data-sym="TSLA" onclick="switchSymbol('TSLA',this)">TSLA</button>
+          <button class="sym-btn stock" data-sym="AAPL" onclick="switchSymbol('AAPL',this)">AAPL</button>
+          <button class="sym-btn stock" data-sym="MSFT" onclick="switchSymbol('MSFT',this)">MSFT</button>
+        </div>
+        <div class="chart-price-display">
+          <span class="current-price" id="currentPrice">---</span>
+          <span class="price-change" id="priceChange">---</span>
+        </div>
+        <div class="chart-controls">
+          <span class="ctrl-group-label">Tools</span>
+          <button class="ctrl-btn" id="drawBtn" onclick="toggleDraw()" title="Draw Trend Line">✏️ Line</button>
+          <button class="ctrl-btn" onclick="clearDrawings()" title="Clear Drawings">🗑️ Clear</button>
+          <span class="divider"></span>
+          <span class="ai-overlay-toggle">
+            <input type="checkbox" id="aiOverlay" checked onchange="toggleAiOverlay()" />
+            <label for="aiOverlay">AI Signals</label>
+          </span>
+        </div>
+      </div>
+
+      <div id="chartContainer" class="chart-container"></div>
+
+      <div class="indicators-row">
+        <div class="indicator-pill" id="rsiPill">RSI: --</div>
+        <div class="indicator-pill" id="macdPill">MACD: --</div>
+        <div class="indicator-pill" id="bbPill">BB%: --</div>
+        <div class="indicator-pill" id="vwapPill">MA26: --</div>
+        <div class="indicator-pill live-pill" id="livePill">⚡ LIVE DATA</div>
+      </div>
+    </main>
+
+    <!-- RIGHT PANEL -->
+    <aside class="right-panel">
+      <div class="sidebar-section">
+        <h3 class="section-title">Agent Stats</h3>
+        <div class="stat-grid">
+          <div class="stat-item">
+            <span class="stat-label">Win Rate</span>
+            <span class="stat-value green" id="winRate">--</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Trades</span>
+            <span class="stat-value" id="totalTrades">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Sharpe</span>
+            <span class="stat-value" id="sharpeRatio">--</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Max DD</span>
+            <span class="stat-value red" id="maxDrawdown">0.00%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- AGENT REASONING LOG -->
+      <div class="sidebar-section">
+        <h3 class="section-title">Agent Reasoning</h3>
+        <div class="agent-log" id="agentLog">
+          <div class="empty-state">Waiting for first candle…</div>
+        </div>
+      </div>
+
+      <!-- GROQ INSIGHT CARD -->
+      <div class="sidebar-section" id="groqSection" style="display:none">
+        <div class="groq-section-header">
+          <h3 class="section-title">🧠 Groq Reasoning</h3>
+          <label class="toggle-switch" title="Toggle Groq AI">
+            <input type="checkbox" id="groqLiveToggle" checked onchange="toggleGroqLive()" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="groq-insight-card" id="groqInsightCard">
+          <div class="groq-action-badge" id="groqActionBadge">WAITING</div>
+          <div class="groq-reason" id="groqReason">Groq will analyze next candle…</div>
+          <div class="groq-model-tag" id="groqModelTag"></div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3 class="section-title">Model Training</h3>
+        <div class="training-panel">
+          <div class="epoch-display">
+            <span>Epoch</span>
+            <span class="epoch-num" id="epochNum">0 / 100</span>
+          </div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+          </div>
+          <div class="loss-row">
+            <span>Loss: <span class="mono" id="lossVal">--</span></span>
+            <span>Acc: <span class="mono green" id="accVal">--</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3 class="section-title">News Feed</h3>
+        <div class="news-feed" id="newsFeed"></div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3 class="section-title">Equity Curve</h3>
+        <canvas id="equityCanvas" width="220" height="100"></canvas>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- BUDGET MODAL -->
+  <div class="budget-modal-overlay" id="budgetModal" style="display:none">
+    <div class="budget-modal-box">
+      <div class="budget-modal-logo">
+        <span class="logo-icon">⬡</span>
+        <span class="logo-text">AiofWalkStreet</span>
+      </div>
+      <h2 class="budget-modal-title">Configure Your Session</h2>
+      <p class="budget-modal-sub">Set your virtual capital and optional AI co-pilot</p>
+
+      <div class="budget-form">
+        <!-- Capital -->
+        <div class="budget-field">
+          <label class="budget-label">Virtual Capital</label>
+          <div class="budget-input-row">
+            <select id="budgetCurrency" class="budget-select">
+              <option value="$">$ USD</option>
+              <option value="₹">₹ INR</option>
+            </select>
+            <input type="number" id="budgetInput" class="budget-input" value="100000" min="1" step="1"
+              placeholder="e.g. 100000" />
+          </div>
+        </div>
+
+        <!-- Groq Divider -->
+        <div class="budget-divider">
+          <span>🧠 Groq AI Co-Pilot (Optional)</span>
+        </div>
+
+        <!-- Groq Toggle -->
+        <div class="budget-field budget-toggle-row">
+          <label class="budget-label">Enable Groq Reasoning Model</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="groqToggle" onchange="toggleGroqFields()" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <!-- Groq Fields (hidden unless enabled) -->
+        <div id="groqFields" style="display:none">
+          <div class="budget-field">
+            <label class="budget-label">Groq API Key <a href="https://console.groq.com" target="_blank"
+                class="budget-link">Get free key →</a></label>
+            <input type="password" id="groqApiKey" class="budget-input" placeholder="gsk_…" autocomplete="off" />
+          </div>
+          <div class="budget-field">
+            <label class="budget-label">Reasoning Model</label>
+            <select id="groqModel" class="budget-select budget-select-full">
+              <option value="openai/gpt-oss-120b" selected>GPT OSS 120B</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="budget-error" id="budgetError"></div>
+        <button class="budget-start-btn" onclick="startApp()">🚀 Start Trading</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

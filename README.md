@@ -45,5 +45,3 @@ The AI responds strictly with:
 
 - **API Keys:** Your Groq API key is stored locally in device memory while the tab is open and is **never** synchronized, kept, or uploaded. 
 
-## 📜 License
-*Please include a license file to detail copyleft/loyalty terms or royalty terms if desired.*
